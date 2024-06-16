@@ -103,12 +103,6 @@ The application uses IAM roles and policies to manage permissions. The following
 - SQS access
 - CloudWatch logging
 
-## Contributing
-
-Contributions are welcome! Please submit a pull request or open an issue to discuss any changes.
-
-## License
-
-This project is licensed under the MIT License.
-
+## Workflow of this application
+![work flow](./images/flow.png)
 
