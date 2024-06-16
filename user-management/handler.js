@@ -33,6 +33,24 @@ module.exports.process = async (event) => {
         console.error(error);
       }
     }
+    else if (record.eventSource === 'aws:sqs') {
+      const messageBody = record.body;
+      const userData = parseUserData(messageBody);
+
+      if (userData) {
+        const dbParams = {
+          TableName: 'user-data-table',
+          Item: userData
+        };
+
+        try {
+          await dynamoDb.put(dbParams).promise();
+          console.log('Data saved to DynamoDB:', userData);
+        } catch (error) {
+          console.error('Error saving data to DynamoDB:', error);
+        }
+      }
+    }
   });
 
   await Promise.all(records);
