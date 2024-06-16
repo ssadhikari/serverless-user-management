@@ -45,6 +45,42 @@ functions:
 
 resources:
   Resources:
+    MyLambdaExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${env:AWS_IAM_ROLE_NAME}
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: MyLambdaPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:PutItem
+                    - dynamodb:BatchWriteItem
+                    - dynamodb:DescribeTable
+                    - dynamodb:Query
+                    - dynamodb:Scan
+                    - s3:GetObject
+                    - sqs:ReceiveMessage
+                    - sqs:DeleteMessage
+                    - sqs:GetQueueAttributes
+                    - kinesis:GetRecords
+                    - kinesis:GetShardIterator
+                    - kinesis:DescribeStream
+                    - kinesis:ListStreams
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "*"
+
     UserDataQueue:
       Type: AWS::SQS::Queue
       Properties:
@@ -64,27 +100,54 @@ resources:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
 
-# plugins:
-#   - serverless-plugin-aws-alerts
+    AlarmTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: "Alarm Topic"
+        TopicName: "alarm-topic"
+
+    DataProcessorFunctionErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: DataProcessorFunctionErrors
+        AlarmDescription: "Alarm if the Lambda function encounters errors"
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value: ${env:SERVICE_NAME}-${env:STAGE}-dataProcessor
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        AlarmActions:
+          - Ref: AlarmTopic
+
+plugins:
+  - serverless-plugin-aws-alerts
+  - serverless-offline
 
 custom:
-  # alerts:
-  #   dashboards: true
-  #   topics:
-  #     alarm:
-  #       topic:
-  #         displayName: Alarm Topic
-  #   definitions:
-  #     functionErrors:
-  #       namespace: 'AWS/Lambda'
-  #       metric: Errors
-  #       threshold: 5
-  #       statistic: Sum
-  #       period: 60
-  #       evaluationPeriods: 1
-  #       comparisonOperator: GreaterThanOrEqualToThreshold
-  #   alarms:
-  #     - functionErrors
+  alerts:
+    dashboards: true
+    topics:
+      alarm:
+        topic:
+          Ref: AlarmTopic
+    definitions:
+      functionErrors:
+        namespace: 'AWS/Lambda'
+        metric: Errors
+        threshold: 5
+        statistic: Sum
+        period: 60
+        evaluationPeriods: 1
+        comparisonOperator: GreaterThanOrEqualToThreshold
+    alarms:
+      - name: functionErrors
+        actions:
+          - Ref: AlarmTopic
 
   serverless-offline:
     port: 3000
@@ -93,6 +156,3 @@ custom:
 
 # Optional for development
 # To run the service locally
-plugins:
-  - serverless-offline
-
